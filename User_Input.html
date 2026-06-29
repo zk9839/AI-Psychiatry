@@ -177,9 +177,9 @@
             document.getElementById("generateButton").disabled = true;
 
             const response = await fetch("/summarize", {
-                method: "POST",
-                body: formData
-            });
+    method: "POST",
+    body: formData
+});
 
             const data = await response.json();
 
