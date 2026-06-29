@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Psychiatry Intake Assistant</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+        }
+
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #cccccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background-color: gray;
+            cursor: not-allowed;
+        }
+
+        .summary-box {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8fafc;
+            border-left: 4px solid #2563eb;
+            border-radius: 6px;
+            min-height: 80px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <h1>Psychiatry Intake Assistant</h1>
+
+        <h3>Age</h3>
+        <input id="age" type="number" placeholder="Enter age">
+
+        <h3>Gender</h3>
+        <select id="gender">
+            <option value="">Select Gender</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+            <option>Prefer not to say</option>
+        </select>
+
+        <h3>How long has this concern been present?</h3>
+        <select id="duration">
+            <option value="">Select Duration</option>
+            <option>Less than 1 week</option>
+            <option>1-4 weeks</option>
+            <option>1-6 months</option>
+            <option>More than 6 months</option>
+        </select>
+
+        <h3>Sleep Quality</h3>
+        <select id="sleep">
+            <option value="">Select Sleep Quality</option>
+            <option>Very Poor</option>
+            <option>Poor</option>
+            <option>Average</option>
+            <option>Good</option>
+            <option>Excellent</option>
+        </select>
+
+        <h3>Energy Level</h3>
+        <select id="energy">
+            <option value="">Select Energy Level</option>
+            <option>Very Low</option>
+            <option>Low</option>
+            <option>Normal</option>
+            <option>High</option>
+        </select>
+
+        <h3>Stress Level (1-10)</h3>
+        <input id="stress" type="number" min="1" max="10" placeholder="Enter stress level">
+
+        <h3>Current Mood</h3>
+        <select id="mood">
+            <option value="">Select Mood</option>
+            <option>Very Low</option>
+            <option>Low</option>
+            <option>Neutral</option>
+            <option>Good</option>
+            <option>Very Good</option>
+        </select>
+
+        <h3>Main Concern</h3>
+        <textarea id="concern" rows="6" placeholder="Describe your concern here..."></textarea>
+
+        <h3>Doctor Email</h3>
+        <input id="doctorEmail" type="email" placeholder="Enter doctor email or your Gmail for testing">
+
+        <br><br>
+
+        <button id="generateButton" onclick="generateSummary()">
+            Generate Summary
+        </button>
+
+        <h2>AI Summary</h2>
+
+        <div class="summary-box">
+            <p id="summaryResult"></p>
+        </div>
+
+        <h2>Revise Summary</h2>
+        <textarea id="revision" rows="4" placeholder="Example: Make it shorter, more professional, or easier to explain to a doctor."></textarea>
+
+    </div>
+
+    <script>
+        async function generateSummary() {
+            const age = document.getElementById("age").value;
+            const gender = document.getElementById("gender").value;
+            const duration = document.getElementById("duration").value;
+            const sleep = document.getElementById("sleep").value;
+            const energy = document.getElementById("energy").value;
+            const stress = document.getElementById("stress").value;
+            const mood = document.getElementById("mood").value;
+            const concernText = document.getElementById("concern").value;
+            const revisionText = document.getElementById("revision").value;
+            const doctorEmail = document.getElementById("doctorEmail").value;
+
+            const formData = new FormData();
+
+            formData.append("age", age);
+            formData.append("gender", gender);
+            formData.append("duration", duration);
+            formData.append("sleep", sleep);
+            formData.append("energy", energy);
+            formData.append("stress", stress);
+            formData.append("mood", mood);
+            formData.append("concern", concernText);
+            formData.append("revision", revisionText);
+            formData.append("doctor_email", doctorEmail);
+
+            document.getElementById("summaryResult").innerText =
+                "Generating summary...";
+
+            document.getElementById("generateButton").disabled = true;
+
+            const response = await fetch("/summarize", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.json();
+
+            document.getElementById("summaryResult").innerText = data.summary;
+
+            document.getElementById("generateButton").disabled = false;
+        }
+    </script>
+</body>
+</html>
