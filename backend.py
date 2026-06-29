@@ -23,7 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = OpenAI()
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 EXCEL_FILE = "patients.xlsx"
 
