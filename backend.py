@@ -10,6 +10,9 @@ import smtplib
 import os
 
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 app = FastAPI()
 
 app.add_middleware(
@@ -23,7 +26,7 @@ app.add_middleware(
 client = OpenAI()
 
 EXCEL_FILE = "patients.xlsx"
-SENDER_EMAIL = "zuhayr.r.khan@gmail.com"
+
 
 
 def send_summary_email(doctor_email, summary):
