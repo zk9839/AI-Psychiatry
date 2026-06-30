@@ -195,7 +195,8 @@ User revision request:
         cell.alignment = Alignment(wrap_text=True, vertical="top")
 
     wb.save(EXCEL_FILE)
-
+    print("Excel file saved successfully.")
+    
     if doctor_email:
         send_summary_email(doctor_email, summary)
 
