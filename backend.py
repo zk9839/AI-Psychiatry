@@ -6,13 +6,15 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment
 from datetime import datetime
 from email.message import EmailMessage
-import smtplib
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+import base64
 import os
 
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
+
 app = FastAPI()
 
 app.add_middleware(
@@ -26,24 +28,26 @@ app.add_middleware(
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 EXCEL_FILE = "patients.xlsx"
-
+GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
 
 def send_summary_email(doctor_email, summary):
     if not doctor_email:
         return
 
-    app_password = os.getenv("GMAIL_APP_PASSWORD")
+    creds = Credentials.from_authorized_user_file(
+        "token.json",
+        GMAIL_SCOPES
+    )
 
-    if not app_password:
-        raise Exception("GMAIL_APP_PASSWORD is not set")
+    service = build("gmail", "v1", credentials=creds)
 
-    msg = EmailMessage()
-    msg["Subject"] = "Patient Visit Preparation Summary"
-    msg["From"] = SENDER_EMAIL
-    msg["To"] = doctor_email
+    message = EmailMessage()
+    message["To"] = doctor_email
+    message["From"] = SENDER_EMAIL
+    message["Subject"] = "Patient Visit Preparation Summary"
 
-    msg.set_content(f"""
+    message.set_content(f"""
 Patient Visit Preparation Summary
 
 {summary}
@@ -51,9 +55,18 @@ Patient Visit Preparation Summary
 Note: This is an AI-generated visit preparation summary. It is not a diagnosis or treatment recommendation.
 """)
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(SENDER_EMAIL, app_password)
-        smtp.send_message(msg)
+    encoded_message = base64.urlsafe_b64encode(
+        message.as_bytes()
+    ).decode()
+
+    create_message = {
+        "raw": encoded_message
+    }
+
+    service.users().messages().send(
+        userId="me",
+        body=create_message
+    ).execute()
 
 
 @app.get("/")
@@ -84,7 +97,8 @@ Create a neutral, clinician-ready visit summary based on the intake information.
 Do not diagnose.
 Do not recommend treatment.
 Do not give medication advice.
-Include all information including age, gender, etc but don't include the asterisks
+Include all information including age, gender, etc.
+Do not use asterisks.
 Return plain text only.
 
 If the user provides a revision request, follow it when generating the summary.
