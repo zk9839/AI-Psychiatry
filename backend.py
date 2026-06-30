@@ -14,6 +14,21 @@ import os
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
+GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
+GOOGLE_TOKEN_JSON = os.getenv("GOOGLE_TOKEN_JSON")
+
+
+def write_google_auth_files():
+    if GOOGLE_CREDENTIALS_JSON and not os.path.exists("credentials.json"):
+        with open("credentials.json", "w") as f:
+            f.write(GOOGLE_CREDENTIALS_JSON)
+
+    if GOOGLE_TOKEN_JSON and not os.path.exists("token.json"):
+        with open("token.json", "w") as f:
+            f.write(GOOGLE_TOKEN_JSON)
+
+
+write_google_auth_files()
 
 app = FastAPI()
 
