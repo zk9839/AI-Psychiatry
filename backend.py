@@ -123,7 +123,7 @@ def home():
     return FileResponse("User_Input.html")
 
 
-@app.post("/summarize")
+
 def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, concern, revision, summary, doctor_email):
     conn = get_db_connection()
     cur = conn.cursor()
