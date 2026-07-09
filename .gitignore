@@ -13,3 +13,5 @@ patients.xlsx
 
 credentials.json
 token.json
+
+.env

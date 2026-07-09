@@ -10,13 +10,47 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import base64
 import os
+import psycopg2
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
 GOOGLE_TOKEN_JSON = os.getenv("GOOGLE_TOKEN_JSON")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL)
+
+def create_patients_table():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS patients (
+            id SERIAL PRIMARY KEY,
+            timestamp TIMESTAMP,
+            age TEXT,
+            gender TEXT,
+            duration TEXT,
+            sleep TEXT,
+            energy TEXT,
+            stress TEXT,
+            mood TEXT,
+            concern TEXT,
+            revision TEXT,
+            summary TEXT,
+            doctor_email TEXT
+        );
+    """)
+
+    conn.commit()
+    cur.close()
+    conn.close()
 
 def write_google_auth_files():
     if GOOGLE_CREDENTIALS_JSON and not os.path.exists("credentials.json"):
@@ -29,7 +63,7 @@ def write_google_auth_files():
 
 
 write_google_auth_files()
-
+create_patients_table()
 app = FastAPI()
 
 app.add_middleware(
@@ -90,6 +124,47 @@ def home():
 
 
 @app.post("/summarize")
+def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, concern, revision, summary, doctor_email):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO patients (
+            timestamp,
+            age,
+            gender,
+            duration,
+            sleep,
+            energy,
+            stress,
+            mood,
+            concern,
+            revision,
+            summary,
+            doctor_email
+        )
+        VALUES (
+            NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+        );
+    """, (
+        age,
+        gender,
+        duration,
+        sleep,
+        energy,
+        stress,
+        mood,
+        concern,
+        revision,
+        summary,
+        doctor_email
+    ))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    
+@app.post("/summarize")
 def summarize(
     age: str = Form(""),
     gender: str = Form(""),
@@ -137,66 +212,23 @@ User revision request:
     )
 
     summary = response.output_text
+    print("Patient saved to PostgreSQL successfully.")
+    save_patient_to_db(
+    age,
+    gender,
+    duration,
+    sleep,
+    energy,
+    stress,
+    mood,
+    concern,
+    revision,
+    summary,
+    doctor_email
+)
 
-    if not os.path.exists(EXCEL_FILE):
-        wb = Workbook()
-        ws = wb.active
+    print("Patient saved to PostgreSQL successfully.")
 
-        ws.append([
-            "Timestamp",
-            "Age",
-            "Gender",
-            "Duration",
-            "Sleep",
-            "Energy",
-            "Stress",
-            "Mood",
-            "Concern",
-            "Revision",
-            "Summary",
-            "Doctor Email"
-        ])
-    else:
-        wb = load_workbook(EXCEL_FILE)
-        ws = wb.active
-
-    ws.append([
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        age,
-        gender,
-        duration,
-        sleep,
-        energy,
-        stress,
-        mood,
-        concern,
-        revision,
-        summary,
-        doctor_email
-    ])
-
-    ws.column_dimensions["A"].width = 20
-    ws.column_dimensions["B"].width = 10
-    ws.column_dimensions["C"].width = 15
-    ws.column_dimensions["D"].width = 20
-    ws.column_dimensions["E"].width = 15
-    ws.column_dimensions["F"].width = 15
-    ws.column_dimensions["G"].width = 10
-    ws.column_dimensions["H"].width = 15
-    ws.column_dimensions["I"].width = 40
-    ws.column_dimensions["J"].width = 40
-    ws.column_dimensions["K"].width = 170
-    ws.column_dimensions["L"].width = 30
-
-    current_row = ws.max_row
-    ws.row_dimensions[current_row].height = 120
-
-    for cell in ws[current_row]:
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
-
-    wb.save(EXCEL_FILE)
-    print("Excel file saved successfully.")
-    
     if doctor_email:
         send_summary_email(doctor_email, summary)
 
@@ -205,3 +237,4 @@ User revision request:
         "summary": summary,
         "email_sent": bool(doctor_email)
     }
+
