@@ -120,7 +120,7 @@ Note: This is an AI-generated visit preparation summary. It is not a diagnosis o
 
 @app.get("/")
 def home():
-    return FileResponse("Welcome.html")
+    return FileResponse("welcome.html")
 
 @app.get("/intake")
 def intake():
