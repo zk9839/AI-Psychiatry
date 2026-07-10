@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Before We Begin — Pre-Appointment Intake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1B2A3D;
+    --ink-soft: #33455C;
+    --paper: #F7F5F0;
+    --paper-raised: #FFFFFF;
+    --sage: #4A7C74;
+    --sage-deep: #365D57;
+    --sage-tint: #E4ECE9;
+    --slate: #8B95A1;
+    --amber: #C97D3A;
+    --line: rgba(27, 42, 61, 0.1);
+    --shadow: rgba(27, 42, 61, 0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
+
+  a { color: inherit; }
+
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ---------- Top bar ---------- */
+
+  .topbar {
+    padding: 28px 0 0;
+  }
+
+  .topbar .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .brand-mark {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--sage);
+    box-shadow: 0 0 0 4px var(--sage-tint);
+  }
+
+  .topbar-note {
+    font-size: 13px;
+    color: var(--slate);
+  }
+
+  /* ---------- Hero: the waiting room ---------- */
+
+  .hero {
+    padding: 96px 0 64px;
+    position: relative;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--sage-deep);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--sage);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .pulse-dot::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--sage);
+    animation: breathe 3.4s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%   { transform: scale(0.6); opacity: 0.9; }
+    70%  { transform: scale(1.9); opacity: 0; }
+    100% { transform: scale(1.9); opacity: 0; }
+  }
+
+  h1 {
+    font-family: 'Source Serif 4', serif;
+    font-size: clamp(34px, 5.4vw, 52px);
+    font-weight: 500;
+    line-height: 1.14;
+    letter-spacing: -0.01em;
+    max-width: 15ch;
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--sage-deep);
+  }
+
+  .hero-sub {
+    margin-top: 22px;
+    font-size: 17px;
+    color: var(--ink-soft);
+    max-width: 46ch;
+  }
+
+  .hero-meta {
+    margin-top: 40px;
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    font-size: 13.5px;
+    color: var(--slate);
+  }
+
+  .hero-meta span {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .hero-meta svg { flex-shrink: 0; }
+
+  /* ---------- Divider ---------- */
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 0;
+  }
+
+  /* ---------- What happens section ---------- */
+
+  .flow {
+    padding: 64px 0 56px;
+  }
+
+  .flow-head {
+    font-family: 'Source Serif 4', serif;
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+
+  .flow-intro {
+    color: var(--ink-soft);
+    font-size: 15.5px;
+    max-width: 52ch;
+    margin-bottom: 36px;
+  }
+
+  .flow-line {
+    position: relative;
+    padding-left: 28px;
+  }
+
+  .flow-line::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    bottom: 6px;
+    width: 1px;
+    background: var(--line);
+  }
+
+  .flow-item {
+    position: relative;
+    padding-bottom: 30px;
+  }
+
+  .flow-item:last-child { padding-bottom: 0; }
+
+  .flow-item::before {
+    content: '';
+    position: absolute;
+    left: -28px;
+    top: 5px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--paper-raised);
+    border: 1.5px solid var(--sage);
+  }
+
+  .flow-item h3 {
+    font-size: 15.5px;
+    font-weight: 600;
+    margin-bottom: 5px;
+  }
+
+  .flow-item p {
+    font-size: 14.5px;
+    color: var(--ink-soft);
+    max-width: 50ch;
+  }
+
+  /* ---------- Reassurance card ---------- */
+
+  .reassure {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 30px 32px;
+    margin: 8px 0 64px;
+    box-shadow: 0 1px 3px var(--shadow);
+  }
+
+  .reassure-top {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .reassure-top svg { flex-shrink: 0; transform: translateY(2px); }
+
+  .reassure h3 {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .reassure p {
+    font-size: 14.5px;
+    color: var(--ink-soft);
+  }
+
+  .reassure p + p { margin-top: 10px; }
+
+  .reassure strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ---------- Action ---------- */
+
+  .action {
+    padding: 8px 0 88px;
+  }
+
+  .begin-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Inter', sans-serif;
+    font-size: 15.5px;
+    font-weight: 500;
+    padding: 16px 26px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.15s ease;
+  }
+
+  .begin-btn:hover {
+    background: var(--sage-deep);
+  }
+
+  .begin-btn:active {
+    transform: scale(0.98);
+  }
+
+  .begin-btn:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 3px;
+  }
+
+  .begin-btn svg {
+    transition: transform 0.2s ease;
+  }
+
+  .begin-btn:hover svg {
+    transform: translateX(3px);
+  }
+
+  .action-note {
+    margin-top: 16px;
+    font-size: 13.5px;
+    color: var(--slate);
+    max-width: 42ch;
+  }
+
+  /* ---------- Footer ---------- */
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 28px 0 40px;
+  }
+
+  footer .wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .foot-note {
+    font-size: 12.5px;
+    color: var(--slate);
+  }
+
+  @media (max-width: 560px) {
+    .hero { padding: 56px 0 40px; }
+    .flow { padding: 48px 0 40px; }
+    .reassure { padding: 24px 22px; margin-bottom: 48px; }
+    .hero-meta { gap: 16px 22px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="wrap">
+      <div class="brand">
+        <span class="brand-mark"></span>
+        Intake
+      </div>
+      <div class="topbar-note">Willowbrook Psychiatric Associates</div>
+    </div>
+  </div>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div class="hero-eyebrow">
+          <span class="pulse-dot"></span>
+          Before your appointment
+        </div>
+
+        <h1>A few quiet minutes, <em>before the clock starts.</em></h1>
+
+        <p class="hero-sub">
+          A short set of questions your psychiatrist would normally ask at the start of your visit — answered here first, in your own time, so more of your appointment is spent talking with them instead of filling out paperwork together.
+        </p>
+
+        <div class="hero-meta">
+          <span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            About 8–10 minutes
+          </span>
+          <span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+            Sent directly to your psychiatrist
+          </span>
+          <span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            Private and confidential
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <hr class="divider">
+
+    <section class="flow">
+      <div class="wrap">
+        <h2 class="flow-head">What happens with your answers</h2>
+        <p class="flow-intro">This isn't a form that disappears into a file. Here's exactly where it goes.</p>
+
+        <div class="flow-line">
+          <div class="flow-item">
+            <h3>You answer in your own words</h3>
+            <p>Questions about how you've been feeling, your history, and what brought you in — the same ground a first conversation usually covers, asked one at a time so nothing feels rushed.</p>
+          </div>
+          <div class="flow-item">
+            <h3>Your responses are organized</h3>
+            <p>What you share is put into a clear summary for your psychiatrist to read before you sit down together — not a transcript they have to dig through.</p>
+          </div>
+          <div class="flow-item">
+            <h3>Your appointment starts from there</h3>
+            <p>Instead of spending the first ten minutes on background questions, your psychiatrist already has that context, and can spend your time with them actually listening.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="wrap">
+        <div class="reassure">
+          <div class="reassure-top">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4A7C74" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            <h3>Before you start</h3>
+          </div>
+          <p>This isn't a substitute for the appointment itself, and it won't ask you to make any decisions. It's simply a way to hand your psychiatrist the background earlier, so your time together goes further.</p>
+          <p>If anything you're asked feels like too much to put into words right now, you can skip it and cover it in person instead. <strong>There's no wrong way to answer.</strong></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="action">
+      <div class="wrap">
+        <a href="intake.html" class="begin-btn" id="beginBtn">
+          Begin
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <p class="action-note">You can pause and come back at any point before you submit — nothing is sent until you choose to send it.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span class="foot-note">Your answers are shared only with your care team.</span>
+      <span class="foot-note">Pre-appointment intake</span>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('beginBtn').addEventListener('click', function(e) {
+      e.preventDefault();
+      window.location.href = 'intake.html';
+    });
+  </script>
+
+</body>
+</html>
