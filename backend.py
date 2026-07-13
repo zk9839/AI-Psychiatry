@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from openai import OpenAI
@@ -50,7 +50,7 @@ def create_patients_table():
     """)
 
     cur.execute("""
-        ALTER TABLE patients ADD COLUMN IF NOT EXISTS followup_answers TEXT;
+        ALTER TABLE patients ADD COLUMN IF NOT EXISTS conversation TEXT;
     """)
 
     conn.commit()
@@ -133,7 +133,7 @@ def intake():
 
 
 
-def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, concern, revision, summary, doctor_email, followup_answers):
+def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, concern, revision, summary, doctor_email, conversation):
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -151,7 +151,7 @@ def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, conce
             revision,
             summary,
             doctor_email,
-            followup_answers
+            conversation
         )
         VALUES (
             NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
@@ -168,7 +168,7 @@ def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, conce
         revision,
         summary,
         doctor_email,
-        followup_answers
+        conversation
     ))
 
     conn.commit()
@@ -176,20 +176,30 @@ def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, conce
     conn.close()
 
 
-@app.post("/check_followup")
-def check_followup(
-    field: str = Form(...),
-    value: str = Form(...)
-):
-    prompt = f"""You are helping clarify a psychiatric intake answer.
-Field: {field}
-Patient's answer: {value}
+@app.post("/start_interview")
+async def start_interview(request: Request):
+    body = await request.json()
+    intake = body.get("intake", {})
 
-If this answer is vague and a brief clarifying question would help the doctor,
-return ONLY the question (under 15 words). If the answer is already specific
-enough, return exactly: NONE
+    prompt = f"""You are conducting a brief pre-appointment intake interview.
 
-Do not diagnose, assess severity, or judge urgency. Only ask for missing detail."""
+You have the patient's initial intake form below. Based on ALL of these answers together, decide if there is ONE valuable follow-up question to ask that would help the doctor prepare — something that fills a real gap or clarifies something vague.
+
+Do not diagnose. Do not assess severity or risk. Do not recommend treatment. Only ask for clarifying detail a doctor would find useful.
+
+If a follow-up question is warranted, return ONLY that question (under 25 words).
+If the intake is already sufficiently detailed, return exactly: NONE
+
+Patient intake:
+Age: {intake.get('age', '')}
+Gender: {intake.get('gender', '')}
+Duration of concern: {intake.get('duration', '')}
+Sleep quality: {intake.get('sleep', '')}
+Energy level: {intake.get('energy', '')}
+Stress level: {intake.get('stress', '')}
+Mood: {intake.get('mood', '')}
+Main concern: {intake.get('concern', '')}
+"""
 
     response = client.responses.create(
         model="gpt-4o-mini",
@@ -202,9 +212,57 @@ Do not diagnose, assess severity, or judge urgency. Only ask for missing detail.
     if any(term in result.lower() for term in blocked_terms):
         result = "NONE"
 
-    followup_question = None if result == "NONE" else result
+    question = None if result == "NONE" else result
 
-    return {"followup_question": followup_question}
+    return {"question": question}
+
+
+@app.post("/continue_interview")
+async def continue_interview(request: Request):
+    body = await request.json()
+    intake = body.get("intake", {})
+    conversation = body.get("conversation", [])
+
+    conversation_text = ""
+    for turn in conversation:
+        role = "Interviewer" if turn.get("role") == "ai" else "Patient"
+        conversation_text += f"{role}: {turn.get('content', '')}\n"
+
+    prompt = f"""You are conducting a brief pre-appointment intake interview.
+
+Patient intake:
+Age: {intake.get('age', '')}
+Gender: {intake.get('gender', '')}
+Duration of concern: {intake.get('duration', '')}
+Sleep quality: {intake.get('sleep', '')}
+Energy level: {intake.get('energy', '')}
+Stress level: {intake.get('stress', '')}
+Mood: {intake.get('mood', '')}
+Main concern: {intake.get('concern', '')}
+
+Conversation so far:
+{conversation_text}
+
+Based on everything above, decide if there is ONE more valuable follow-up question to ask. Do not diagnose. Do not assess severity or risk. Do not recommend treatment. Only ask for clarifying detail a doctor would find useful. Avoid repeating anything already asked.
+
+If another question is warranted, return ONLY that question (under 25 words).
+If enough has been gathered, return exactly: NONE
+"""
+
+    response = client.responses.create(
+        model="gpt-4o-mini",
+        input=prompt
+    )
+
+    result = response.output_text.strip()
+
+    blocked_terms = ["concerning", "severe", "risk", "diagnos", "urgent"]
+    if any(term in result.lower() for term in blocked_terms):
+        result = "NONE"
+
+    question = None if result == "NONE" else result
+
+    return {"question": question}
 
 
 @app.post("/summarize")
@@ -219,18 +277,19 @@ def summarize(
     concern: str = Form(...),
     revision: str = Form(""),
     doctor_email: str = Form(""),
-    followup_answers: str = Form("{}")
+    conversation: str = Form("[]")
 ):
     try:
-        followups = json.loads(followup_answers)
+        conversation_list = json.loads(conversation)
     except json.JSONDecodeError:
-        followups = {}
+        conversation_list = []
 
-    followup_text = ""
-    if followups:
-        followup_text = "Additional clarifying details:\n"
-        for field, answer in followups.items():
-            followup_text += f"- {field}: {answer}\n"
+    conversation_text = ""
+    if conversation_list:
+        conversation_text = "Follow-up interview:\n"
+        for turn in conversation_list:
+            role = "Question" if turn.get("role") == "ai" else "Patient answer"
+            conversation_text += f"{role}: {turn.get('content', '')}\n"
 
     response = client.responses.create(
         model="gpt-4o-mini",
@@ -261,7 +320,7 @@ Mood: {mood}
 Main concern:
 {concern}
 
-{followup_text}
+{conversation_text}
 User revision request:
 {revision}
 """
@@ -280,7 +339,7 @@ User revision request:
         revision,
         summary,
         doctor_email,
-        followup_answers
+        conversation
     )
 
     print("Patient saved to PostgreSQL successfully.")

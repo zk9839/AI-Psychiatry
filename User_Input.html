@@ -61,6 +61,53 @@
             min-height: 80px;
             white-space: pre-wrap;
         }
+
+        .hidden {
+            display: none;
+        }
+
+        .chat-window {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .chat-msg {
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            max-width: 80%;
+            white-space: pre-wrap;
+        }
+
+        .chat-msg.ai {
+            background-color: #e0e7ff;
+            margin-right: auto;
+        }
+
+        .chat-msg.patient {
+            background-color: #2563eb;
+            color: white;
+            margin-left: auto;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .chat-input-row input {
+            flex: 1;
+        }
+
+        .chat-input-row button {
+            padding: 12px 20px;
+        }
     </style>
 </head>
 
@@ -79,15 +126,6 @@
             <option>Female</option>
             <option>Other</option>
             <option>Prefer not to say</option>
-        </select>
-
-        <h3>How long has this concern been present?</h3>
-        <select id="duration">
-            <option value="">Select Duration</option>
-            <option>Less than 1 week</option>
-            <option>1-4 weeks</option>
-            <option>1-6 months</option>
-            <option>More than 6 months</option>
         </select>
 
         <h3>Sleep Quality</h3>
@@ -125,14 +163,40 @@
         <h3>Main Concern</h3>
         <textarea id="concern" rows="6" placeholder="Describe your concern here..."></textarea>
 
+        <h3>How long has this concern been present?</h3>
+        <select id="duration">
+            <option value="">Select Duration</option>
+            <option>Less than 1 week</option>
+            <option>1-4 weeks</option>
+            <option>1-6 months</option>
+            <option>More than 6 months</option>
+        </select>
+
         <h3>Doctor Email</h3>
         <input id="doctorEmail" type="email" placeholder="Enter doctor email or your Gmail for testing">
 
         <br><br>
 
-        <button id="generateButton" onclick="generateSummary()">
-            Generate Summary
+        <button id="startInterviewButton" onclick="startInterview()">
+            Continue
         </button>
+
+        <div id="interviewSection" class="hidden">
+            <h2>A Few Follow-Up Questions</h2>
+            <p>Based on what you shared, a few quick questions may help your doctor prepare. Answer as many as you'd like.</p>
+
+            <div class="chat-window" id="chatWindow"></div>
+
+            <div class="chat-input-row">
+                <input id="chatAnswerInput" type="text" placeholder="Type your answer...">
+                <button id="chatSendButton" onclick="sendChatAnswer()">Send</button>
+            </div>
+
+            <br>
+            <button id="generateButton" onclick="generateSummary()">
+                Generate Summary
+            </button>
+        </div>
 
         <h2>AI Summary</h2>
 
@@ -146,45 +210,120 @@
     </div>
 
     <script>
+        let intakeData = {};
+        let conversationHistory = [];
+
+        function collectIntakeData() {
+            return {
+                age: document.getElementById("age").value,
+                gender: document.getElementById("gender").value,
+                duration: document.getElementById("duration").value,
+                sleep: document.getElementById("sleep").value,
+                energy: document.getElementById("energy").value,
+                stress: document.getElementById("stress").value,
+                mood: document.getElementById("mood").value,
+                concern: document.getElementById("concern").value,
+                doctor_email: document.getElementById("doctorEmail").value
+            };
+        }
+
+        function appendChatMessage(role, text) {
+            const chatWindow = document.getElementById("chatWindow");
+            const msg = document.createElement("div");
+            msg.className = "chat-msg " + (role === "ai" ? "ai" : "patient");
+            msg.innerText = text;
+            chatWindow.appendChild(msg);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        async function startInterview() {
+            intakeData = collectIntakeData();
+
+            document.getElementById("startInterviewButton").disabled = true;
+            document.getElementById("interviewSection").classList.remove("hidden");
+
+            appendChatMessage("ai", "Thinking of a few helpful questions...");
+
+            const response = await fetch("/start_interview", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ intake: intakeData })
+            });
+
+            const data = await response.json();
+
+            document.getElementById("chatWindow").innerHTML = "";
+
+            if (data.question) {
+                conversationHistory.push({ role: "ai", content: data.question });
+                appendChatMessage("ai", data.question);
+            } else {
+                appendChatMessage("ai", "No further questions needed. You can generate your summary now.");
+            }
+
+            document.getElementById("startInterviewButton").disabled = false;
+        }
+
+        async function sendChatAnswer() {
+            const input = document.getElementById("chatAnswerInput");
+            const answer = input.value.trim();
+
+            if (!answer) return;
+
+            appendChatMessage("patient", answer);
+            conversationHistory.push({ role: "patient", content: answer });
+            input.value = "";
+
+            document.getElementById("chatSendButton").disabled = true;
+
+            const response = await fetch("/continue_interview", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    intake: intakeData,
+                    conversation: conversationHistory
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.question) {
+                conversationHistory.push({ role: "ai", content: data.question });
+                appendChatMessage("ai", data.question);
+            } else {
+                appendChatMessage("ai", "That's all the questions I have. You can generate your summary now.");
+            }
+
+            document.getElementById("chatSendButton").disabled = false;
+        }
+
         async function generateSummary() {
-            const age = document.getElementById("age").value;
-            const gender = document.getElementById("gender").value;
-            const duration = document.getElementById("duration").value;
-            const sleep = document.getElementById("sleep").value;
-            const energy = document.getElementById("energy").value;
-            const stress = document.getElementById("stress").value;
-            const mood = document.getElementById("mood").value;
-            const concernText = document.getElementById("concern").value;
             const revisionText = document.getElementById("revision").value;
-            const doctorEmail = document.getElementById("doctorEmail").value;
 
             const formData = new FormData();
-
-            formData.append("age", age);
-            formData.append("gender", gender);
-            formData.append("duration", duration);
-            formData.append("sleep", sleep);
-            formData.append("energy", energy);
-            formData.append("stress", stress);
-            formData.append("mood", mood);
-            formData.append("concern", concernText);
+            formData.append("age", intakeData.age);
+            formData.append("gender", intakeData.gender);
+            formData.append("duration", intakeData.duration);
+            formData.append("sleep", intakeData.sleep);
+            formData.append("energy", intakeData.energy);
+            formData.append("stress", intakeData.stress);
+            formData.append("mood", intakeData.mood);
+            formData.append("concern", intakeData.concern);
             formData.append("revision", revisionText);
-            formData.append("doctor_email", doctorEmail);
+            formData.append("doctor_email", intakeData.doctor_email);
+            formData.append("conversation", JSON.stringify(conversationHistory));
 
-            document.getElementById("summaryResult").innerText =
-                "Generating summary...";
-
+            document.getElementById("summaryResult").innerText = "Generating summary...";
             document.getElementById("generateButton").disabled = true;
 
             const response = await fetch("/summarize", {
-    method: "POST",
-    body: formData
-});
+                method: "POST",
+                body: formData
+            });
 
             const data = await response.json();
 
             document.getElementById("summaryResult").innerText = data.summary;
-
             document.getElementById("generateButton").disabled = false;
         }
     </script>
