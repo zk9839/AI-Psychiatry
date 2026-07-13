@@ -10,6 +10,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import base64
 import os
+import json
 import psycopg2
 from dotenv import load_dotenv
 
@@ -46,6 +47,10 @@ def create_patients_table():
             summary TEXT,
             doctor_email TEXT
         );
+    """)
+
+    cur.execute("""
+        ALTER TABLE patients ADD COLUMN IF NOT EXISTS followup_answers TEXT;
     """)
 
     conn.commit()
@@ -128,7 +133,7 @@ def intake():
 
 
 
-def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, concern, revision, summary, doctor_email):
+def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, concern, revision, summary, doctor_email, followup_answers):
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -145,10 +150,11 @@ def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, conce
             concern,
             revision,
             summary,
-            doctor_email
+            doctor_email,
+            followup_answers
         )
         VALUES (
-            NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
         );
     """, (
         age,
@@ -161,13 +167,46 @@ def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, conce
         concern,
         revision,
         summary,
-        doctor_email
+        doctor_email,
+        followup_answers
     ))
 
     conn.commit()
     cur.close()
     conn.close()
-    
+
+
+@app.post("/check_followup")
+def check_followup(
+    field: str = Form(...),
+    value: str = Form(...)
+):
+    prompt = f"""You are helping clarify a psychiatric intake answer.
+Field: {field}
+Patient's answer: {value}
+
+If this answer is vague and a brief clarifying question would help the doctor,
+return ONLY the question (under 15 words). If the answer is already specific
+enough, return exactly: NONE
+
+Do not diagnose, assess severity, or judge urgency. Only ask for missing detail."""
+
+    response = client.responses.create(
+        model="gpt-4o-mini",
+        input=prompt
+    )
+
+    result = response.output_text.strip()
+
+    blocked_terms = ["concerning", "severe", "risk", "diagnos", "urgent"]
+    if any(term in result.lower() for term in blocked_terms):
+        result = "NONE"
+
+    followup_question = None if result == "NONE" else result
+
+    return {"followup_question": followup_question}
+
+
 @app.post("/summarize")
 def summarize(
     age: str = Form(""),
@@ -179,8 +218,20 @@ def summarize(
     mood: str = Form(""),
     concern: str = Form(...),
     revision: str = Form(""),
-    doctor_email: str = Form("")
+    doctor_email: str = Form(""),
+    followup_answers: str = Form("{}")
 ):
+    try:
+        followups = json.loads(followup_answers)
+    except json.JSONDecodeError:
+        followups = {}
+
+    followup_text = ""
+    if followups:
+        followup_text = "Additional clarifying details:\n"
+        for field, answer in followups.items():
+            followup_text += f"- {field}: {answer}\n"
+
     response = client.responses.create(
         model="gpt-4o-mini",
         input=f"""
@@ -210,26 +261,27 @@ Mood: {mood}
 Main concern:
 {concern}
 
+{followup_text}
 User revision request:
 {revision}
 """
     )
 
     summary = response.output_text
-    print("Patient saved to PostgreSQL successfully.")
     save_patient_to_db(
-    age,
-    gender,
-    duration,
-    sleep,
-    energy,
-    stress,
-    mood,
-    concern,
-    revision,
-    summary,
-    doctor_email
-)
+        age,
+        gender,
+        duration,
+        sleep,
+        energy,
+        stress,
+        mood,
+        concern,
+        revision,
+        summary,
+        doctor_email,
+        followup_answers
+    )
 
     print("Patient saved to PostgreSQL successfully.")
 
