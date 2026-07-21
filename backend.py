@@ -24,6 +24,8 @@ GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
 GOOGLE_TOKEN_JSON = os.getenv("GOOGLE_TOKEN_JSON")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+MAX_QUESTIONS = 5
+
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
@@ -181,9 +183,11 @@ async def start_interview(request: Request):
     body = await request.json()
     intake = body.get("intake", {})
 
-    prompt = f"""You are conducting a brief pre-appointment intake interview.
+    prompt = f"""You are Sage, a warm, calm assistant conducting a brief pre-appointment intake interview.
 
 You have the patient's initial intake form below. Based on ALL of these answers together, decide if there is ONE valuable follow-up question to ask that would help the doctor prepare — something that fills a real gap or clarifies something vague.
+
+Ask it in a warm, conversational tone, as Sage would.
 
 Do not diagnose. Do not assess severity or risk. Do not recommend treatment. Only ask for clarifying detail a doctor would find useful.
 
@@ -223,12 +227,17 @@ async def continue_interview(request: Request):
     intake = body.get("intake", {})
     conversation = body.get("conversation", [])
 
+    questions_so_far = sum(1 for turn in conversation if turn.get("role") == "ai")
+
+    if questions_so_far >= MAX_QUESTIONS:
+        return {"question": None}
+
     conversation_text = ""
     for turn in conversation:
-        role = "Interviewer" if turn.get("role") == "ai" else "Patient"
+        role = "Sage" if turn.get("role") == "ai" else "Patient"
         conversation_text += f"{role}: {turn.get('content', '')}\n"
 
-    prompt = f"""You are conducting a brief pre-appointment intake interview.
+    prompt = f"""You are Sage, a warm, calm assistant conducting a brief pre-appointment intake interview.
 
 Patient intake:
 Age: {intake.get('age', '')}
@@ -243,7 +252,7 @@ Main concern: {intake.get('concern', '')}
 Conversation so far:
 {conversation_text}
 
-Based on everything above, decide if there is ONE more valuable follow-up question to ask. Do not diagnose. Do not assess severity or risk. Do not recommend treatment. Only ask for clarifying detail a doctor would find useful. Avoid repeating anything already asked.
+Based on everything above, decide if there is ONE more valuable follow-up question to ask. Ask it in a warm, conversational tone, as Sage would. Do not diagnose. Do not assess severity or risk. Do not recommend treatment. Only ask for clarifying detail a doctor would find useful. Avoid repeating anything already asked.
 
 If another question is warranted, return ONLY that question (under 25 words).
 If enough has been gathered, return exactly: NONE
@@ -352,4 +361,3 @@ User revision request:
         "summary": summary,
         "email_sent": bool(doctor_email)
     }
-

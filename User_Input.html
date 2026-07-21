@@ -66,8 +66,35 @@
             display: none;
         }
 
+        .chat-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .chat-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background-color: #4A7C74;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .chat-progress {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+
         .chat-window {
-            margin-top: 15px;
+            margin-top: 10px;
             padding: 15px;
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -93,6 +120,13 @@
             background-color: #2563eb;
             color: white;
             margin-left: auto;
+        }
+
+        .chat-msg-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4A7C74;
+            margin-bottom: 4px;
         }
 
         .chat-input-row {
@@ -182,8 +216,12 @@
         </button>
 
         <div id="interviewSection" class="hidden">
-            <h2>A Few Follow-Up Questions</h2>
-            <p>Based on what you shared, a few quick questions may help your doctor prepare. Answer as many as you'd like.</p>
+            <div class="chat-header">
+                <div class="chat-avatar">S</div>
+                <h2 style="margin:0;">Sage</h2>
+            </div>
+            <p>Sage may ask a couple of quick follow-up questions based on what you shared, so your doctor has a fuller picture. Answer as many as you'd like.</p>
+            <div class="chat-progress" id="chatProgress"></div>
 
             <div class="chat-window" id="chatWindow"></div>
 
@@ -210,8 +248,11 @@
     </div>
 
     <script>
+        const MAX_QUESTIONS = 4;
+
         let intakeData = {};
         let conversationHistory = [];
+        let questionsAsked = 0;
 
         function collectIntakeData() {
             return {
@@ -227,13 +268,38 @@
             };
         }
 
+        function updateProgress() {
+            const progressEl = document.getElementById("chatProgress");
+            if (questionsAsked > 0) {
+                progressEl.innerText = `Question ${questionsAsked} of up to ${MAX_QUESTIONS}`;
+            } else {
+                progressEl.innerText = "";
+            }
+        }
+
         function appendChatMessage(role, text) {
             const chatWindow = document.getElementById("chatWindow");
+            const wrapper = document.createElement("div");
+
+            const label = document.createElement("div");
+            label.className = "chat-msg-label";
+            label.innerText = role === "ai" ? "Sage" : "You";
+            if (role === "patient") label.style.textAlign = "right";
+
             const msg = document.createElement("div");
             msg.className = "chat-msg " + (role === "ai" ? "ai" : "patient");
             msg.innerText = text;
-            chatWindow.appendChild(msg);
+
+            wrapper.appendChild(label);
+            wrapper.appendChild(msg);
+            chatWindow.appendChild(wrapper);
             chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function closeInterview(message) {
+            appendChatMessage("ai", message);
+            document.getElementById("chatAnswerInput").disabled = true;
+            document.getElementById("chatSendButton").disabled = true;
         }
 
         async function startInterview() {
@@ -242,7 +308,7 @@
             document.getElementById("startInterviewButton").disabled = true;
             document.getElementById("interviewSection").classList.remove("hidden");
 
-            appendChatMessage("ai", "Thinking of a few helpful questions...");
+            appendChatMessage("ai", "Hi, I'm Sage. Give me a moment to look over what you shared...");
 
             const response = await fetch("/start_interview", {
                 method: "POST",
@@ -255,10 +321,12 @@
             document.getElementById("chatWindow").innerHTML = "";
 
             if (data.question) {
+                questionsAsked = 1;
+                updateProgress();
                 conversationHistory.push({ role: "ai", content: data.question });
                 appendChatMessage("ai", data.question);
             } else {
-                appendChatMessage("ai", "No further questions needed. You can generate your summary now.");
+                appendChatMessage("ai", "Thanks — what you shared already gives a clear picture. You can generate your summary now.");
             }
 
             document.getElementById("startInterviewButton").disabled = false;
@@ -274,6 +342,11 @@
             conversationHistory.push({ role: "patient", content: answer });
             input.value = "";
 
+            if (questionsAsked >= MAX_QUESTIONS) {
+                closeInterview("That's everything I need for now — thank you. You can generate your summary whenever you're ready.");
+                return;
+            }
+
             document.getElementById("chatSendButton").disabled = true;
 
             const response = await fetch("/continue_interview", {
@@ -288,13 +361,14 @@
             const data = await response.json();
 
             if (data.question) {
+                questionsAsked += 1;
+                updateProgress();
                 conversationHistory.push({ role: "ai", content: data.question });
                 appendChatMessage("ai", data.question);
+                document.getElementById("chatSendButton").disabled = false;
             } else {
-                appendChatMessage("ai", "That's all the questions I have. You can generate your summary now.");
+                closeInterview("That's all I have for now — thank you for sharing that. You can generate your summary whenever you're ready.");
             }
-
-            document.getElementById("chatSendButton").disabled = false;
         }
 
         async function generateSummary() {
