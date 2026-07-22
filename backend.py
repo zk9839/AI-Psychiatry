@@ -146,8 +146,14 @@ def create_calendar_event(appointment_datetime, doctor_email, summary):
     event = {
         "summary": "Patient Appointment",
         "description": summary,
-        "start": {"dateTime": start_dt.isoformat()},
-        "end": {"dateTime": end_dt.isoformat()},
+        "start": {
+            "dateTime": start_dt.isoformat(),
+            "timeZone": "America/Chicago"
+        },
+        "end": {
+            "dateTime": end_dt.isoformat(),
+            "timeZone": "America/Chicago"
+        },
     }
 
     if doctor_email:
