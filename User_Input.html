@@ -71,7 +71,7 @@
             padding-top: 24px;
             border-top: 1px solid #e2e8f0;
         }
-        
+
         .chat-header {
             display: flex;
             align-items: center;
@@ -148,6 +148,20 @@
         .chat-input-row button {
             padding: 12px 20px;
         }
+
+        .calendar-note {
+            margin-top: 15px;
+            padding: 12px 15px;
+            background-color: #f0fdf4;
+            border-left: 4px solid #16a34a;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .calendar-note a {
+            color: #16a34a;
+            font-weight: 600;
+        }
     </style>
 </head>
 
@@ -206,14 +220,17 @@
         <h3>How long has this concern been present?</h3>
         <select id="duration">
             <option value="">Select Duration</option>
-            <option>Less than 1 month</option>
-            <option>1-4 months</option>
+            <option>Less than 1 week</option>
+            <option>1-4 weeks</option>
             <option>1-6 months</option>
             <option>More than 6 months</option>
         </select>
 
         <h3>Doctor Email</h3>
         <input id="doctorEmail" type="email" placeholder="Enter doctor email or your Gmail for testing">
+
+        <h3>Appointment Date & Time</h3>
+        <input id="appointmentDatetime" type="datetime-local">
 
         <br><br>
 
@@ -248,8 +265,7 @@
             <p id="summaryResult"></p>
         </div>
 
-        <h2>Revise Summary</h2>
-        <textarea id="revision" rows="4" placeholder="Example: Make it shorter, more professional, or easier to explain to a doctor."></textarea>
+        <div id="calendarNote"></div>
 
     </div>
 
@@ -270,7 +286,8 @@
                 stress: document.getElementById("stress").value,
                 mood: document.getElementById("mood").value,
                 concern: document.getElementById("concern").value,
-                doctor_email: document.getElementById("doctorEmail").value
+                doctor_email: document.getElementById("doctorEmail").value,
+                appointment_datetime: document.getElementById("appointmentDatetime").value
             };
         }
 
@@ -378,8 +395,6 @@
         }
 
         async function generateSummary() {
-            const revisionText = document.getElementById("revision").value;
-
             const formData = new FormData();
             formData.append("age", intakeData.age);
             formData.append("gender", intakeData.gender);
@@ -389,8 +404,8 @@
             formData.append("stress", intakeData.stress);
             formData.append("mood", intakeData.mood);
             formData.append("concern", intakeData.concern);
-            formData.append("revision", revisionText);
             formData.append("doctor_email", intakeData.doctor_email);
+            formData.append("appointment_datetime", intakeData.appointment_datetime);
             formData.append("conversation", JSON.stringify(conversationHistory));
 
             document.getElementById("summaryResult").innerText = "Generating summary...";
@@ -404,6 +419,14 @@
             const data = await response.json();
 
             document.getElementById("summaryResult").innerText = data.summary;
+
+            const noteEl = document.getElementById("calendarNote");
+            if (data.calendar_link) {
+                noteEl.innerHTML = `<div class="calendar-note">Calendar event created — <a href="${data.calendar_link}" target="_blank">view it here</a>.</div>`;
+            } else {
+                noteEl.innerHTML = "";
+            }
+
             document.getElementById("generateButton").disabled = false;
         }
     </script>

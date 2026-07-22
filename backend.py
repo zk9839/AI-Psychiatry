@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from openai import OpenAI
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.message import EmailMessage
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -24,7 +24,9 @@ GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
 GOOGLE_TOKEN_JSON = os.getenv("GOOGLE_TOKEN_JSON")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-MAX_QUESTIONS = 5
+MAX_QUESTIONS = 4
+GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
@@ -45,7 +47,6 @@ def create_patients_table():
             stress TEXT,
             mood TEXT,
             concern TEXT,
-            revision TEXT,
             summary TEXT,
             doctor_email TEXT
         );
@@ -53,6 +54,10 @@ def create_patients_table():
 
     cur.execute("""
         ALTER TABLE patients ADD COLUMN IF NOT EXISTS conversation TEXT;
+    """)
+
+    cur.execute("""
+        ALTER TABLE patients ADD COLUMN IF NOT EXISTS appointment_datetime TEXT;
     """)
 
     conn.commit()
@@ -84,7 +89,6 @@ app.add_middleware(
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 EXCEL_FILE = "patients.xlsx"
-GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
 
 def send_summary_email(doctor_email, summary):
@@ -125,6 +129,38 @@ Note: This is an AI-generated visit preparation summary. It is not a diagnosis o
     ).execute()
 
 
+def create_calendar_event(appointment_datetime, doctor_email, summary):
+    if not appointment_datetime:
+        return None
+
+    creds = Credentials.from_authorized_user_file(
+        "token.json",
+        CALENDAR_SCOPES
+    )
+
+    service = build("calendar", "v3", credentials=creds)
+
+    start_dt = datetime.fromisoformat(appointment_datetime)
+    end_dt = start_dt + timedelta(minutes=30)
+
+    event = {
+        "summary": "Patient Appointment",
+        "description": summary,
+        "start": {"dateTime": start_dt.isoformat()},
+        "end": {"dateTime": end_dt.isoformat()},
+    }
+
+    if doctor_email:
+        event["attendees"] = [{"email": doctor_email}]
+
+    created_event = service.events().insert(
+        calendarId="primary",
+        body=event
+    ).execute()
+
+    return created_event.get("htmlLink")
+
+
 @app.get("/")
 def home():
     return FileResponse("welcome.html")
@@ -135,7 +171,7 @@ def intake():
 
 
 
-def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, concern, revision, summary, doctor_email, conversation):
+def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, concern, summary, doctor_email, conversation, appointment_datetime):
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -150,10 +186,10 @@ def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, conce
             stress,
             mood,
             concern,
-            revision,
             summary,
             doctor_email,
-            conversation
+            conversation,
+            appointment_datetime
         )
         VALUES (
             NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
@@ -167,10 +203,10 @@ def save_patient_to_db(age, gender, duration, sleep, energy, stress, mood, conce
         stress,
         mood,
         concern,
-        revision,
         summary,
         doctor_email,
-        conversation
+        conversation,
+        appointment_datetime
     ))
 
     conn.commit()
@@ -284,8 +320,8 @@ def summarize(
     stress: str = Form(""),
     mood: str = Form(""),
     concern: str = Form(...),
-    revision: str = Form(""),
     doctor_email: str = Form(""),
+    appointment_datetime: str = Form(""),
     conversation: str = Form("[]")
 ):
     try:
@@ -314,9 +350,6 @@ Include all information including age, gender, etc.
 Do not use asterisks.
 Return plain text only.
 
-If the user provides a revision request, follow it when generating the summary.
-If no revision request is provided, generate the best summary you can.
-
 Patient information:
 Age: {age}
 Gender: {gender}
@@ -330,12 +363,11 @@ Main concern:
 {concern}
 
 {conversation_text}
-User revision request:
-{revision}
 """
     )
 
     summary = response.output_text
+
     save_patient_to_db(
         age,
         gender,
@@ -345,10 +377,10 @@ User revision request:
         stress,
         mood,
         concern,
-        revision,
         summary,
         doctor_email,
-        conversation
+        conversation,
+        appointment_datetime
     )
 
     print("Patient saved to PostgreSQL successfully.")
@@ -356,8 +388,11 @@ User revision request:
     if doctor_email:
         send_summary_email(doctor_email, summary)
 
+    calendar_link = create_calendar_event(appointment_datetime, doctor_email, summary)
+
     return {
         "received": concern,
         "summary": summary,
-        "email_sent": bool(doctor_email)
+        "email_sent": bool(doctor_email),
+        "calendar_link": calendar_link
     }
