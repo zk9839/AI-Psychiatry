@@ -129,39 +129,34 @@ Note: This is an AI-generated visit preparation summary. It is not a diagnosis o
     ).execute()
 
 
-def create_calendar_event(appointment_datetime, doctor_email, summary):
+def create_calendar_event(appointment_datetime, doctor_email, patient_email, summary):
     if not appointment_datetime:
         return None
 
-    creds = Credentials.from_authorized_user_file(
-        "token.json",
-        CALENDAR_SCOPES
-    )
-
+    creds = Credentials.from_authorized_user_file("token.json", CALENDAR_SCOPES)
     service = build("calendar", "v3", credentials=creds)
 
     start_dt = datetime.fromisoformat(appointment_datetime)
     end_dt = start_dt + timedelta(minutes=30)
 
+    attendees = []
+    if doctor_email:
+        attendees.append({"email": doctor_email})
+    if patient_email:
+        attendees.append({"email": patient_email})
+
     event = {
         "summary": "Patient Appointment",
         "description": summary,
-        "start": {
-            "dateTime": start_dt.isoformat(),
-            "timeZone": "America/Chicago"
-        },
-        "end": {
-            "dateTime": end_dt.isoformat(),
-            "timeZone": "America/Chicago"
-        },
+        "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/Chicago"},
+        "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Chicago"},
+        "attendees": attendees,
     }
-
-    if doctor_email:
-        event["attendees"] = [{"email": doctor_email}]
 
     created_event = service.events().insert(
         calendarId="primary",
-        body=event
+        body=event,
+        sendUpdates="all"
     ).execute()
 
     return created_event.get("htmlLink")
