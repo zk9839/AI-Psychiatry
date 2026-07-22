@@ -323,7 +323,8 @@ def summarize(
     concern: str = Form(...),
     doctor_email: str = Form(""),
     appointment_datetime: str = Form(""),
-    conversation: str = Form("[]")
+    conversation: str = Form("[]"),
+    patient_email: str = Form("")
 ):
     try:
         conversation_list = json.loads(conversation)
@@ -389,7 +390,7 @@ Main concern:
     if doctor_email:
         send_summary_email(doctor_email, summary)
 
-    calendar_link = create_calendar_event(appointment_datetime, doctor_email, summary)
+    calendar_link = create_calendar_event(appointment_datetime, doctor_email, patient_email, summary)
 
     return {
         "received": concern,
